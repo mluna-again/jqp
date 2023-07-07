@@ -8,6 +8,22 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type CustomTheme struct {
+	Primary   string
+	Secondary string
+	Inactive  string
+	Success   string
+	Error     string
+}
+
+var CustomThemeKeys = CustomTheme{
+	Primary:   "theme.primary",
+	Secondary: "theme.secondary",
+	Success:   "theme.success",
+	Inactive:  "theme.inactive",
+	Error:     "theme.error",
+}
+
 const (
 	BLUE  = lipgloss.Color("69")
 	PINK  = lipgloss.Color("#F25D94")
@@ -435,4 +451,28 @@ func GetTheme(theme string) (Theme, bool) {
 	} else {
 		return getDefaultTheme(), true
 	}
+}
+
+func (c CustomTheme) ToTheme() Theme {
+	d := getDefaultTheme()
+	theme := Theme{
+		Primary:     customColorOrDefault(c.Primary, d.Primary),
+		Secondary:   customColorOrDefault(c.Secondary, d.Secondary),
+		Inactive:    customColorOrDefault(c.Inactive, d.Inactive),
+		Success:     customColorOrDefault(c.Success, d.Success),
+		Error:       customColorOrDefault(c.Error, d.Error),
+		ChromaStyle: styles.ParaisoLight,
+	}
+	if lipgloss.HasDarkBackground() {
+		theme.ChromaStyle = styles.Vim
+	}
+	return theme
+}
+
+func customColorOrDefault(color string, def lipgloss.Color) lipgloss.Color {
+	if color == "" {
+		return def
+	}
+
+	return lipgloss.Color(color)
 }

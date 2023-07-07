@@ -27,7 +27,18 @@ var rootCmd = &cobra.Command{
 		themeOverrides := viper.GetStringMapString(configKeysName.themeOverrides)
 
 		jqtheme, defaultTheme := theme.GetTheme(flags.theme)
-		// If not using the default theme, 
+		if flags.theme == "custom" {
+			customTheme := theme.CustomTheme{
+				Primary:   viper.GetString(theme.CustomThemeKeys.Primary),
+				Secondary: viper.GetString(theme.CustomThemeKeys.Secondary),
+				Success:   viper.GetString(theme.CustomThemeKeys.Success),
+				Inactive:  viper.GetString(theme.CustomThemeKeys.Inactive),
+				Error:     viper.GetString(theme.CustomThemeKeys.Error),
+			}
+			jqtheme = customTheme.ToTheme()
+			defaultTheme = false
+		}
+		// If not using the default theme,
 		// and if theme specified is the same as in the config,
 		// which happens if the theme flag was used,
 		// apply chroma style overrides.
@@ -112,10 +123,10 @@ func initConfig() {
 		// Search config in home directory
 		viper.AddConfigPath(home)
 
-    // register the config file
+		// register the config file
 		viper.SetConfigName(".jqp")
 
-    //only read from yaml files
+		//only read from yaml files
 		viper.SetConfigType("yaml")
 
 	}
@@ -139,7 +150,8 @@ var flagsName = struct {
 }
 
 var configKeysName = struct {
-	themeName, themeOverrides string
+	themeName      string
+	themeOverrides string
 }{
 	themeName:      "theme.name",
 	themeOverrides: "theme.chromaStyleOverrides",

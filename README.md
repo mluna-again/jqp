@@ -121,6 +121,17 @@ theme:
 
 <img width="1624" alt="Screen Shot 2022-10-02 at 5 31 40 PM" src="https://user-images.githubusercontent.com/23270779/193477383-db5ca769-12bf-4fd0-b826-b1fd4086eac3.png">
 
+You can also use a custom theme using the "custom" name.
+```yaml
+theme:
+  name: "custom"
+  primary: "#c4b28a"
+  secondary: "#8992a7"
+  error: "#c4746e"
+  inactive: "#a6a69c"
+  success: "#87a987"
+```
+
 ### Chroma Style Overrides
 
 Overrides to the chroma styles used for a theme can be configured in your [configuration file](#configuration). 
