@@ -21,5 +21,6 @@ func DefaultStyles() (s Styles) {
 
 	s.helpTextStyle = lipgloss.NewStyle()
 
+
 	return s
 }

@@ -2,9 +2,16 @@ package queryinput
 
 import (
 	"container/list"
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/itchyny/gojq"
 	"github.com/noahgorstein/jqp/tui/theme"
 )
 
@@ -15,9 +22,11 @@ type Bubble struct {
 	history         *list.List
 	historyMaxLen   int
 	historySelected *list.Element
+	inputJson       map[string]any
+	possibleKey     string
 }
 
-func New(theme theme.Theme) Bubble {
+func New(theme theme.Theme, inputJson []byte) (Bubble, error) {
 
 	s := DefaultStyles()
 	s.containerStyle.BorderForeground(theme.Primary)
@@ -28,13 +37,22 @@ func New(theme theme.Theme) Bubble {
 	ti.TextStyle.Height(1)
 	ti.Prompt = lipgloss.NewStyle().Bold(true).Foreground(theme.Secondary).Render("jq > ")
 
+	data := map[string]any{}
+	err := json.Unmarshal(inputJson, &data)
+	if err != nil {
+		return Bubble{}, err
+	}
+	s.autocompleteHintStyle = s.autocompleteHintStyle.Foreground(theme.Secondary)
+
 	return Bubble{
 		Styles:    s,
 		textinput: ti,
 
 		history:       list.New(),
 		historyMaxLen: 512,
-	}
+
+		inputJson: data,
+	}, nil
 }
 
 func (b *Bubble) SetBorderColor(color lipgloss.TerminalColor) {
@@ -53,6 +71,70 @@ func (b *Bubble) RotateHistory() {
 	}
 }
 
+func (b *Bubble) FillAutocomplete() {
+	if b.possibleKey == "" {
+		return
+	}
+
+	cmps := strings.Split(b.textinput.Value(), ".")
+	if len(cmps) < 1 {
+		return
+	}
+
+	newValue := fmt.Sprintf("%s%s", b.textinput.Value(), b.possibleKey)
+	b.textinput.SetValue(newValue)
+	b.textinput.SetCursor(len(newValue))
+	b.possibleKey = ""
+}
+
+func (b *Bubble) ShowAutocomplete() {
+	query := strings.TrimSpace(b.textinput.Value())
+	if query == "" {
+		b.possibleKey = ""
+		return
+	}
+
+	cmps := strings.Split(query, ".")
+	lastKey := ""
+	if len(cmps) > 0 {
+		lastKey = cmps[len(cmps)-1]
+	}
+
+	withoutLastKey := ""
+	if len(cmps) > 1 {
+		withoutLastKey = fmt.Sprintf(".%s", strings.Join(cmps[1:len(cmps)-1], "."))
+	}
+
+	q, err := gojq.Parse(fmt.Sprintf("%s | to_entries[] | select(.key | startswith(\"%s\")) | .key", withoutLastKey, lastKey))
+	if err != nil {
+		b.possibleKey = ""
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+	iter := q.RunWithContext(ctx, b.inputJson)
+	for {
+		v, ok := iter.Next()
+		if !ok {
+			b.possibleKey = ""
+			break
+		}
+		if _, ok := v.(error); ok {
+			b.possibleKey = ""
+			break
+		}
+		if value, ok := v.(string); ok {
+			if strings.HasSuffix(query, value) {
+				b.possibleKey = ""
+				break
+			}
+			b.possibleKey = strings.TrimPrefix(value, lastKey)
+			break
+		}
+		b.possibleKey = ""
+	}
+}
+
 func (b Bubble) Init() tea.Cmd {
 	return textinput.Blink
 }
@@ -63,12 +145,28 @@ func (b *Bubble) SetWidth(width int) {
 }
 
 func (b Bubble) View() string {
-	return b.Styles.containerStyle.Render(b.textinput.View())
+	sb := strings.Builder{}
+	inputView := b.Styles.containerStyle.Render(b.textinput.View())
+	sb.WriteString(inputView)
+	sb.WriteRune('\n')
+	if b.possibleKey != "" {
+		padding := lipgloss.Width(b.textinput.Value()) + 6 // 6 is for the prompt
+		sb.WriteString(b.Styles.autocompleteHintStyle.PaddingLeft(padding).Render(b.possibleKey))
+	}
+
+	return sb.String()
 }
 
 func (b Bubble) Update(msg tea.Msg) (Bubble, tea.Cmd) {
+	b.ShowAutocomplete()
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch msg.Type {
+		case tea.KeyBackspace:
+			b.possibleKey = ""
+
+		case tea.KeyCtrlL:
+			b.FillAutocomplete()
+
 		case tea.KeyUp:
 			if b.history.Len() == 0 {
 				break

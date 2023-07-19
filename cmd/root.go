@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/chroma/v2"
-	"github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/noahgorstein/jqp/tui/bubbles/jqplayground"
 	"github.com/noahgorstein/jqp/tui/theme"
 	"github.com/spf13/cobra"
@@ -67,7 +67,10 @@ var rootCmd = &cobra.Command{
 				return errors.New("JSON is not valid")
 			}
 
-			bubble := jqplayground.New(stdin, "STDIN", jqtheme)
+			bubble, err := jqplayground.New(stdin, "STDIN", jqtheme)
+			if err != nil {
+				return err
+			}
 			p := tea.NewProgram(bubble, tea.WithAltScreen())
 			if err := p.Start(); err != nil {
 				return err
@@ -99,7 +102,10 @@ var rootCmd = &cobra.Command{
 				return err
 			}
 
-			bubble := jqplayground.New(data, fi.Name(), jqtheme)
+			bubble, err := jqplayground.New(data, fi.Name(), jqtheme)
+			if err != nil {
+				return err
+			}
 			p := tea.NewProgram(bubble, tea.WithAltScreen())
 
 			if err := p.Start(); err != nil {

@@ -34,7 +34,7 @@ type Bubble struct {
 	theme            theme.Theme
 }
 
-func New(inputJson []byte, filename string, theme theme.Theme) Bubble {
+func New(inputJson []byte, filename string, theme theme.Theme) (Bubble, error) {
 
 	workingDirectory, _ := os.Getwd()
 
@@ -43,11 +43,15 @@ func New(inputJson []byte, filename string, theme theme.Theme) Bubble {
 	fs := fileselector.New(theme)
 
 	fs.SetInput(workingDirectory)
+	queryInput, err := queryinput.New(theme, inputJson)
+	if err != nil {
+		return Bubble{}, err
+	}
 
 	b := Bubble{
 		workingDirectory: workingDirectory,
 		state:            state.Query,
-		queryinput:       queryinput.New(theme),
+		queryinput:       queryInput,
 		inputdata:        inputdata.New(inputJson, filename, theme),
 		output:           output.New(theme),
 		help:             help.New(theme),
@@ -55,5 +59,5 @@ func New(inputJson []byte, filename string, theme theme.Theme) Bubble {
 		fileselector:     fs,
 		theme:            theme,
 	}
-	return b
+	return b, nil
 }
